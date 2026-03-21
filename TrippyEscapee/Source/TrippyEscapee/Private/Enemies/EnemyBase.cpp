@@ -23,7 +23,7 @@ AEnemyBase::AEnemyBase()
 
 	bHasSeenPlayer = false;
 	MinDistance = 200.0f;
-	MaxDistance = 400.0f;
+	MaxDistance = 600.0f;
 	MoveSpeed = 300.0f;
 	BulletSpeed = 600.f;
 
@@ -45,6 +45,8 @@ void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
 	PlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+	OnTakeAnyDamage.AddDynamic(this, &AEnemyBase::ReceiveDamage);
 	if (PawnSensing)
 	{
 		PawnSensing->OnSeePawn.AddDynamic(this, &AEnemyBase::OnSeePawn);
@@ -156,5 +158,17 @@ void AEnemyBase::OnSeePawn(APawn* Pawn)
 
 	bHasSeenPlayer = true;
 }
+
+void AEnemyBase::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
+{
+	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
+	// Update HUD Here
+	UE_LOG(LogTemp, Warning, TEXT("Enemy took damage: %f, Current Health: %f"), Damage, Health);
+	if (Health <= 0.f)
+	{
+		Destroy();
+	}
+}
+
 
 

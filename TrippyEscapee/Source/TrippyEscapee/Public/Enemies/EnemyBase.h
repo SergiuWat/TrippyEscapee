@@ -61,6 +61,12 @@ public:
 
 	UFUNCTION()
 	void OnSeePawn(APawn* Pawn);
+
+	float Health = 100.f;
+	float MaxHealth = 100.f;
+
+	UFUNCTION()
+	void ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCause);
 protected:
 
 	virtual void BeginPlay() override;

@@ -63,6 +63,23 @@ public:
 	float Health = 100.f;
 	float MaxHealth = 100.f;
 
+	UFUNCTION()
+	void ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCause);
+
+	/*
+	* Checkpoint
+	*/
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Checkpoint")
+	FVector LastCheckpointLocation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Checkpoint")
+	float SavedHealth;
+
+	void SetCheckpoint(FVector NewLocation);
+
+	void Respawn();
+
 protected:
 	virtual void BeginPlay() override;
 private:

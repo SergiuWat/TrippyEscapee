@@ -35,10 +35,36 @@ APlayerCharacter::APlayerCharacter()
 }
 
 
+void APlayerCharacter::SetCheckpoint(FVector NewLocation)
+{
+	LastCheckpointLocation = NewLocation;
+
+	// save stats
+	SavedHealth = Health;
+
+	UE_LOG(LogTemp, Warning, TEXT("Checkpoint saved at: %s"), *NewLocation.ToString());
+}
+
+void APlayerCharacter::Respawn()
+{
+	if (LastCheckpointLocation.IsZero())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No checkpoint set!"));
+		return;
+	}
+
+	SetActorLocation(LastCheckpointLocation);
+	Health = SavedHealth;
+
+	UE_LOG(LogTemp, Warning, TEXT("Respawned at checkpoint"));
+}
+
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	PlayerCharacterController = PlayerCharacterController == nullptr ? Cast<APlayerCharacterController>(GetController()) : PlayerCharacterController;
+
+	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacter::ReceiveDamage);
 	if (PlayerCharacterController)
 	{
 		PlayerCharacterController->SetShowMouseCursor(true);
@@ -124,7 +150,15 @@ void APlayerCharacter::Shoot(const FInputActionValue& Value)
 			}
 		}
 	}
+}
 
-	
-
+void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
+{
+	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
+	// Update HUD Here
+	UE_LOG(LogTemp, Warning, TEXT("Player took damage: %f, Current Health: %f"), Damage, Health);
+	if (Health <= 0.f)
+	{
+		Respawn();
+	}
 }

@@ -6,6 +6,9 @@
 #include "Components/BoxComponent.h"
 #include "PaperSpriteComponent.h"
 #include "../TrippyEscapee.h"
+#include "Characters/PlayerCharacter.h"
+#include "Kismet/GameplayStatics.h"
+#include "Enemies/EnemyBase.h"
 
 ABullet::ABullet()
 {
@@ -40,4 +43,18 @@ void ABullet::BeginPlay()
 void ABullet::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	//Take damage or what ever
+	APlayerCharacter* Player = Cast<APlayerCharacter>(OtherActor);
+    if (Player)
+    {
+		//Deal damage here
+		UGameplayStatics::ApplyDamage(Player, 20.f, GetInstigatorController(), this, UDamageType::StaticClass());
+        Destroy();
+    }
+	AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
+    if (Enemy)
+    {
+		UGameplayStatics::ApplyDamage(Enemy, 20.f, GetInstigatorController(), this, UDamageType::StaticClass());
+		Destroy();
+    }
+
 }
