@@ -15,6 +15,8 @@ struct FInputActionValue;
 class ABullet;
 class APlayerCharacterController;
 class UPaperSpriteComponent;
+class UPaperFlipbook;
+class USoundCue;
 /**
  * 
  */
@@ -56,6 +58,10 @@ public:
 	UInputAction* ShootAction;
 
 	void Move(const FInputActionValue& Value);
+
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	USoundCue* ShootSound;
+
 	void Shoot(const FInputActionValue& Value);
 	
 
@@ -69,8 +75,19 @@ public:
 	* Damage logic
 	*/
 
+
+	UPROPERTY(EditAnywhere, Category = "Checkpoint")
+	UPaperFlipbook* HitFlipbook;
+
 	float Health = 100.f;
 	float MaxHealth = 100.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsHitAnimationFinished = true;
+
+	FTimerHandle HitAnimationTimerHandle;
+
+	void OnHitAnimationFinished();
 
 	FTimerHandle DamageTimerHandle;
 	bool bTookDamage = false;
@@ -146,7 +163,6 @@ public:
 	UPaperSpriteComponent* HandSprite;
 
 	void UpdateHandRotation();
-
 
 
 protected:

@@ -12,6 +12,11 @@
 #include "Pickups/BaseStamp.h"
 #include "PaperSpriteComponent.h"
 #include "PaperSprite.h"
+#include "Sound/SoundCue.h"
+#include "Kismet/GameplayStatics.h"
+#include "PaperFlipbookComponent.h"
+#include "PaperFlipbook.h"
+
 AEnemyBase::AEnemyBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -74,6 +79,7 @@ void AEnemyBase::Tick(float DeltaTime)
 		StopFiring();
 		return;
 	}
+	if (bIsStunned) return;
 	UpdateHandRotation();
 	FVector MyLocation = GetActorLocation();
 	FVector PlayerLocation = PlayerCharacter->GetActorLocation();
@@ -110,22 +116,12 @@ void AEnemyBase::Tick(float DeltaTime)
 	if (DeltaX > 0)
 	{
 		SetActorScale3D(FVector(-1, 1, 1));   // right
-		//UE_LOG(LogTemp, Warning, TEXT("Right"));
-		/*FVector PivotLocation = HandPivot->GetRelativeLocation();
-		PivotLocation.X = -38.f;
-		PivotLocation.Y = -0.01f;
-		HandPivot->SetRelativeLocation(PivotLocation);*/
-		//HandSprite->SetRelativeScale3D(FVector(0.5f, 1.f, 0.5f));
+
 	}
 	else
 	{
 		SetActorScale3D(FVector(1, 1, 1));  // left
-		//UE_LOG(LogTemp, Warning, TEXT("Left"));
-		//FVector PivotLocation = HandPivot->GetRelativeLocation();
-		//PivotLocation.X = 38.f;
-		//PivotLocation.Y = 0.01f;
-		//HandPivot->SetRelativeLocation(PivotLocation);
-		//HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f));
+
 	}
 }
 
@@ -163,6 +159,7 @@ void AEnemyBase::Fire()
 		ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletClass, SpawnLocation, Rotation, SpawnParams);
 		if (Bullet)
 		{
+			UGameplayStatics::PlaySoundAtLocation(this, ShootSound, GetActorLocation());
 			Bullet->GetProjectileMovement()->Velocity = Direction * 2000.f;
 			Bullet->GetProjectileMovement()->InitialSpeed = BulletSpeed;
 			Bullet->GetProjectileMovement()->MaxSpeed = BulletSpeed;
@@ -189,6 +186,17 @@ void AEnemyBase::OnSeePawn(APawn* Pawn)
 void AEnemyBase::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
 {
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
+	UE_LOG(LogTemp, Warning, TEXT("Takes Damage"));
+	if (HitFlipbook)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InFlipBook"));
+		bIsStunned = true;
+		GetCharacterMovement()->StopMovementImmediately();
+
+		bIsHitAnimationFinished = false;
+		float Duration = HitFlipbook->GetTotalDuration();
+		GetWorld()->GetTimerManager().SetTimer(HitAnimationTimerHandle, this, &AEnemyBase::OnHitAnimationFinished, Duration, false);
+	}
 	// Update HUD Here
 	UE_LOG(LogTemp, Warning, TEXT("Enemy took damage: %f, Current Health: %f"), Damage, Health);
 	if (Health <= 0.f)
@@ -267,5 +275,12 @@ void AEnemyBase::UpdateHandRotation()
 
 	}
 	HandPivot->SetWorldRotation(NewRotation);
+}
+
+void AEnemyBase::OnHitAnimationFinished()
+{
+	UE_LOG(LogTemp, Warning, TEXT("HitAnimationFinished"));
+	bIsHitAnimationFinished = true;
+	bIsStunned = false;
 }
 

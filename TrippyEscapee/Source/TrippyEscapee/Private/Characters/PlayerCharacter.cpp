@@ -17,6 +17,9 @@
 #include "PaperFlipbookComponent.h"
 #include "PaperSpriteComponent.h"
 #include "PaperSprite.h"
+#include "PaperFlipbook.h"
+#include "Sound/SoundCue.h"
+#include "Kismet/GameplayStatics.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -198,6 +201,7 @@ void APlayerCharacter::Shoot(const FInputActionValue& Value)
 			ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletClass, StartPos, SpawnRotation, SpawnParams);
 			if (Bullet)
 			{
+				UGameplayStatics::PlaySoundAtLocation(this, ShootSound, GetActorLocation());
 				Bullet->GetProjectileMovement()->Velocity = Direction * 2000.f;
 				Bullet->GetBoxCollision()->IgnoreActorWhenMoving(this, true);
 			}
@@ -247,6 +251,16 @@ void APlayerCharacter::ReverseDamageTimerFinished()
 	bIsStampActive = false;
 }
 
+void APlayerCharacter::OnHitAnimationFinished()
+{
+	PlayerCharacterController = PlayerCharacterController == nullptr ? Cast<APlayerCharacterController>(GetController()) : PlayerCharacterController;
+	if (PlayerCharacterController)
+	{
+		EnableInput(PlayerCharacterController);
+	}
+	bIsHitAnimationFinished = true;
+}
+
 void APlayerCharacter::TookDamageTimerFinished()
 {
 	bTookDamage = false;
@@ -257,6 +271,20 @@ void APlayerCharacter::TookDamageTimerFinished()
 void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
 {
 	if (bTookDamage) return;
+
+	PlayerCharacterController = PlayerCharacterController == nullptr ? Cast<APlayerCharacterController>(GetController()) : PlayerCharacterController;
+	if (PlayerCharacterController)
+	{
+		DisableInput(PlayerCharacterController);
+	}
+
+	if (HitFlipbook)
+	{
+		bIsHitAnimationFinished = false;
+		float Duration = HitFlipbook->GetTotalDuration();
+		GetWorld()->GetTimerManager().SetTimer(HitAnimationTimerHandle, this, &APlayerCharacter::OnHitAnimationFinished, Duration, false);
+	}
+
 	bTookDamage = true;
 	GetWorld()->GetTimerManager().SetTimer(DamageTimerHandle, this, &APlayerCharacter::TookDamageTimerFinished, DamageCooldown, false);
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);

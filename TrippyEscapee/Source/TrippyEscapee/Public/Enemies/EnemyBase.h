@@ -11,6 +11,8 @@ class APlayerCharacter;
 class ABullet;
 class ABaseStamp;
 class UPaperSpriteComponent;
+class USoundCue;
+class UPaperFlipbook;
 
 USTRUCT(BlueprintType)
 struct FStampDrop
@@ -97,6 +99,22 @@ public:
 	UPaperSpriteComponent* HandSprite;
 
 	void UpdateHandRotation();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsHitAnimationFinished = true;
+
+	FTimerHandle HitAnimationTimerHandle;
+
+	UFUNCTION()
+	void OnHitAnimationFinished();
+
+	bool bIsStunned = false;
+
+	UPROPERTY(EditAnywhere, Category = "Checkpoint")
+	UPaperFlipbook* HitFlipbook;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	USoundCue* ShootSound;
 
 protected:
 
