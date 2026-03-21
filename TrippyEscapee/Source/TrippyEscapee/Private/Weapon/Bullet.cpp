@@ -17,8 +17,10 @@ ABullet::ABullet()
     BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
     RootComponent = BoxCollision;
     BoxCollision->SetMobility(EComponentMobility::Movable);
-    BoxCollision->SetCollisionResponseToChannel(ECC_PlayerCharacter, ECollisionResponse::ECR_Overlap);
-    BoxCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
+    BoxCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    BoxCollision->SetCollisionObjectType(ECC_WorldDynamic);
+    BoxCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+    BoxCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	GetRenderComponent()->SetupAttachment(RootComponent);
 
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
@@ -28,14 +30,17 @@ ABullet::ABullet()
     ProjectileMovement->ProjectileGravityScale = 0.0f;
     ProjectileMovement->bConstrainToPlane = true;
     ProjectileMovement->SetPlaneConstraintNormal(FVector(0, 1, 0)); 
+
 }
 void ABullet::BeginPlay()
 {
 	Super::BeginPlay();
     if (GetOwner()) 
     {
+        BoxCollision->MoveIgnoreActors.Add(GetOwner());
 		BoxCollision->IgnoreActorWhenMoving(GetOwner(), true);
     }
+    PlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 	BoxCollision->OnComponentBeginOverlap.AddDynamic(this, &ABullet::OnOverlapBegin);
 	//GetRenderComponent()->SetMobility(EComponentMobility::Movable);
 }
@@ -43,18 +48,24 @@ void ABullet::BeginPlay()
 void ABullet::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	//Take damage or what ever
-	APlayerCharacter* Player = Cast<APlayerCharacter>(OtherActor);
-    if (Player)
+    UE_LOG(LogTemp, Warning, TEXT("Overlap"));
+    if (!OtherActor || OtherActor == GetOwner()) return;
+
+    bool bReverse = PlayerCharacter && PlayerCharacter->GetIsReverseDamageActive();
+
+    AActor* DamageTarget = bReverse ? GetOwner() : OtherActor;
+
+    if (DamageTarget)
     {
-		//Deal damage here
-		UGameplayStatics::ApplyDamage(Player, 20.f, GetInstigatorController(), this, UDamageType::StaticClass());
-        Destroy();
+        UGameplayStatics::ApplyDamage(
+            DamageTarget,
+            20.f,
+            GetInstigatorController(),
+            this,
+            UDamageType::StaticClass()
+            );
     }
-	AEnemyBase* Enemy = Cast<AEnemyBase>(OtherActor);
-    if (Enemy)
-    {
-		UGameplayStatics::ApplyDamage(Enemy, 20.f, GetInstigatorController(), this, UDamageType::StaticClass());
-		Destroy();
-    }
+    UE_LOG(LogTemp, Warning, TEXT("DESTROYED"));
+    Destroy();
 
 }

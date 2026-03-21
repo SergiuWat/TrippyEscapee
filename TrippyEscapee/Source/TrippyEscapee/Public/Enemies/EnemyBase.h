@@ -9,6 +9,20 @@
 class UPawnSensingComponent;
 class APlayerCharacter;
 class ABullet;
+class ABaseStamp;
+class UPaperSpriteComponent;
+
+USTRUCT(BlueprintType)
+struct FStampDrop
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<ABaseStamp> StampClass;
+
+	UPROPERTY(EditAnywhere)
+	float DropChance; // e.g. 10 = 10%, 50 = 50%
+};
 /**
  * 
  */
@@ -55,6 +69,11 @@ public:
 
 	FTimerHandle FireTimer;
 
+	UPROPERTY(EditAnywhere, Category = "Stamps")
+	TArray<FStampDrop> StampDrops;
+
+	TSubclassOf<ABaseStamp>GetRandomStamp();
+
 	void StartFiring();
 	void StopFiring();
 	void Fire();
@@ -67,6 +86,18 @@ public:
 
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCause);
+
+	/*
+	* Hand logic
+	*/
+	UPROPERTY(VisibleAnywhere)
+	USceneComponent* HandPivot;
+
+	UPROPERTY(EditAnywhere)
+	UPaperSpriteComponent* HandSprite;
+
+	void UpdateHandRotation();
+
 protected:
 
 	virtual void BeginPlay() override;

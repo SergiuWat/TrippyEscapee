@@ -14,6 +14,9 @@
 #include "Controllers/PlayerCharacterController.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/BoxComponent.h"
+#include "PaperFlipbookComponent.h"
+#include "PaperSpriteComponent.h"
+#include "PaperSprite.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -30,8 +33,18 @@ APlayerCharacter::APlayerCharacter()
 	FollowCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
+
+	HandPivot = CreateDefaultSubobject<USceneComponent>(TEXT("HandPivot"));
+	HandPivot->SetupAttachment(RootComponent);
+
+
+	HandSprite = CreateDefaultSubobject<UPaperSpriteComponent>(TEXT("HandSprite"));
+	HandSprite->SetupAttachment(HandPivot);
+
+
 	SpawnBulletPosition = CreateDefaultSubobject<USceneComponent>(TEXT("SpawnBulletPosition"));
-	SpawnBulletPosition->SetupAttachment(RootComponent);
+	SpawnBulletPosition->SetupAttachment(HandSprite);
+	
 }
 
 
@@ -59,6 +72,7 @@ void APlayerCharacter::Respawn()
 	UE_LOG(LogTemp, Warning, TEXT("Respawned at checkpoint"));
 }
 
+
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -75,6 +89,33 @@ void APlayerCharacter::BeginPlay()
 void APlayerCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	UpdateHandRotation();
+	FVector Velocity = GetVelocity();
+	Velocity.Y = 0.f;
+	Velocity.Z = 0.f;
+	float Speed = Velocity.Size();
+	if (Speed == 0)
+	{
+		FVector PivotLocation = HandPivot->GetRelativeLocation();
+		PivotLocation.Y = -0.01f;
+		PivotLocation.X = -38.0f;
+		HandPivot->SetRelativeLocation(PivotLocation);
+	}
+	if (bTookDamage)
+	{
+		FlickerTimer -= DeltaTime;
+		if (FlickerTimer <= 0.f)
+		{
+			FlickerTimer = FlickerDuration;
+			GetSprite()->SetVisibility(true);
+			HandSprite->SetVisibility(true);
+		}
+		else
+		{
+			GetSprite()->SetVisibility(false);
+			HandSprite->SetVisibility(false);
+		}
+	}
 }
 
 void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -113,7 +154,19 @@ void APlayerCharacter::Move(const FInputActionValue& Value)
 
 		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
+		if (MovementVector.X < 0)
+		{
+			FVector PivotLocation = HandPivot->GetRelativeLocation();
+			PivotLocation.X = 38.f;
+			PivotLocation.Y = 0.01f;
+			HandPivot->SetRelativeLocation(PivotLocation);
+		}
+		else {
+			FVector PivotLocation = HandPivot->GetRelativeLocation();
+			PivotLocation.X = -38.f;
+			PivotLocation.Y = -0.01f;
+			HandPivot->SetRelativeLocation(PivotLocation);
+		}
 		AddMovementInput(ForwardDirection, MovementVector.X);
 	}
 }
@@ -181,13 +234,70 @@ void APlayerCharacter::ConfusedTimerFinished()
 	bIsStampActive = false;
 }
 
+void APlayerCharacter::SetReverseDamage(bool bIsReverseDamage)
+{
+	bIsReverseDamageActive = bIsReverseDamage;
+	bIsStampActive = true;
+	GetWorld()->GetTimerManager().SetTimer(ReverseDamageTimerHandle, this, &APlayerCharacter::ReverseDamageTimerFinished, ReverseDamageDuration, false);
+}
+
+void APlayerCharacter::ReverseDamageTimerFinished()
+{
+	bIsReverseDamageActive = false;
+	bIsStampActive = false;
+}
+
+void APlayerCharacter::TookDamageTimerFinished()
+{
+	bTookDamage = false;
+	GetSprite()->SetVisibility(true);
+	HandSprite->SetVisibility(true);
+}
+
 void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
 {
+	if (bTookDamage) return;
+	bTookDamage = true;
+	GetWorld()->GetTimerManager().SetTimer(DamageTimerHandle, this, &APlayerCharacter::TookDamageTimerFinished, DamageCooldown, false);
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
 	// Update HUD Here
 	UE_LOG(LogTemp, Warning, TEXT("Player took damage: %f, Current Health: %f"), Damage, Health);
 	if (Health <= 0.f)
 	{
 		Respawn();
+	}
+}
+
+
+void APlayerCharacter::UpdateHandRotation()
+{
+	FVector MouseWorldPos;
+	FVector MouseWorldDir;
+
+	if (PlayerCharacterController->DeprojectMousePositionToWorld(MouseWorldPos, MouseWorldDir))
+	{
+		FVector StartPos = HandPivot->GetComponentLocation();
+
+		float T = (StartPos.Y - MouseWorldPos.Y) / MouseWorldDir.Y;
+		FVector Target = MouseWorldPos + MouseWorldDir * T;
+
+		FVector Direction = (Target - StartPos).GetSafeNormal();
+
+		FRotator NewRotation = Direction.Rotation();
+
+		NewRotation.Yaw = 0.f;
+		NewRotation.Roll = 0.f;
+
+		if (Target.X < GetActorLocation().X)
+		{
+
+			HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f));
+			NewRotation *= -1.f;
+		}
+		else
+		{
+			HandSprite->SetRelativeScale3D(FVector(0.5f, 1.f, 0.5f));
+		}
+		HandPivot->SetWorldRotation(NewRotation);
 	}
 }

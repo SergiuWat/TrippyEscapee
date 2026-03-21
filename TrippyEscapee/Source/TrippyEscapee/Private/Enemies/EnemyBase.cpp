@@ -9,7 +9,9 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/BoxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-
+#include "Pickups/BaseStamp.h"
+#include "PaperSpriteComponent.h"
+#include "PaperSprite.h"
 AEnemyBase::AEnemyBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -31,15 +33,24 @@ AEnemyBase::AEnemyBase()
 	GetCharacterMovement()->bConstrainToPlane = true;
 	GetCharacterMovement()->SetPlaneConstraintAxisSetting(EPlaneConstraintAxisSetting::Y);
 
-	MuzzlePoint = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzlePoint"));
-	MuzzlePoint->SetupAttachment(GetRootComponent());
-
 	FireRate = 1.0f;
-
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
+
+	HandPivot = CreateDefaultSubobject<USceneComponent>(TEXT("HandPivot"));
+	HandPivot->SetupAttachment(RootComponent);
+
+
+	HandSprite = CreateDefaultSubobject<UPaperSpriteComponent>(TEXT("HandSprite"));
+	HandSprite->SetupAttachment(HandPivot);
+
+
+	MuzzlePoint = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzlePoint"));
+	MuzzlePoint->SetupAttachment(HandSprite);
+
 }
+
 
 void AEnemyBase::BeginPlay()
 {
@@ -63,7 +74,7 @@ void AEnemyBase::Tick(float DeltaTime)
 		StopFiring();
 		return;
 	}
-
+	UpdateHandRotation();
 	FVector MyLocation = GetActorLocation();
 	FVector PlayerLocation = PlayerCharacter->GetActorLocation();
 
@@ -84,26 +95,40 @@ void AEnemyBase::Tick(float DeltaTime)
 		GetCharacterMovement()->StopMovementImmediately();
 	}
 
-	if (Distance <= MaxDistance)
-	{
-		StartFiring();
-	}
-	else
-	{
-		StopFiring();
-	}
+	//if (Distance <= MaxDistance)
+	//{
+	//	StartFiring();
+	//}
+	//else
+	//{
+	//	StopFiring();
+	//}
+	StartFiring();
 
 	float DeltaX = PlayerLocation.X - MyLocation.X;
 
 	if (DeltaX > 0)
 	{
 		SetActorScale3D(FVector(-1, 1, 1));   // right
+		//UE_LOG(LogTemp, Warning, TEXT("Right"));
+		/*FVector PivotLocation = HandPivot->GetRelativeLocation();
+		PivotLocation.X = -38.f;
+		PivotLocation.Y = -0.01f;
+		HandPivot->SetRelativeLocation(PivotLocation);*/
+		//HandSprite->SetRelativeScale3D(FVector(0.5f, 1.f, 0.5f));
 	}
 	else
 	{
 		SetActorScale3D(FVector(1, 1, 1));  // left
+		//UE_LOG(LogTemp, Warning, TEXT("Left"));
+		//FVector PivotLocation = HandPivot->GetRelativeLocation();
+		//PivotLocation.X = 38.f;
+		//PivotLocation.Y = 0.01f;
+		//HandPivot->SetRelativeLocation(PivotLocation);
+		//HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f));
 	}
 }
+
 
 void AEnemyBase::StartFiring()
 {
@@ -148,6 +173,7 @@ void AEnemyBase::Fire()
 
 void AEnemyBase::OnSeePawn(APawn* Pawn)
 {
+	if (bHasSeenPlayer) return;
 	if (!Pawn)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("OnSeePawn triggered but Pawn is NULL"));
@@ -157,6 +183,7 @@ void AEnemyBase::OnSeePawn(APawn* Pawn)
 	UE_LOG(LogTemp, Warning, TEXT("Enemy saw pawn: %s"), *Pawn->GetName());
 
 	bHasSeenPlayer = true;
+	HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f));
 }
 
 void AEnemyBase::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
@@ -166,9 +193,79 @@ void AEnemyBase::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageT
 	UE_LOG(LogTemp, Warning, TEXT("Enemy took damage: %f, Current Health: %f"), Damage, Health);
 	if (Health <= 0.f)
 	{
+		TSubclassOf<ABaseStamp> StampToSpawn = GetRandomStamp();
+		if (StampToSpawn)
+		{
+			GetWorld()->SpawnActor<ABaseStamp>(
+				StampToSpawn,
+				GetActorLocation(),
+				FRotator::ZeroRotator
+			);
+		}
 		Destroy();
 	}
 }
 
+TSubclassOf<ABaseStamp> AEnemyBase::GetRandomStamp()
+{
+	float TotalWeight = 0.f;
 
+	for (const FStampDrop& Drop : StampDrops)
+	{
+		TotalWeight += Drop.DropChance;
+	}
+
+	if (TotalWeight <= 0.f) return nullptr;
+
+	float RandomValue = FMath::FRandRange(0.f, TotalWeight);
+
+	float RunningSum = 0.f;
+
+	for (const FStampDrop& Drop : StampDrops)
+	{
+		RunningSum += Drop.DropChance;
+
+		if (RandomValue <= RunningSum)
+		{
+			return Drop.StampClass;
+		}
+	}
+
+	return nullptr;
+}
+
+
+void AEnemyBase::UpdateHandRotation()
+{
+	if (!PlayerCharacter || !HandPivot || !MuzzlePoint) return;
+
+	FVector Start = HandPivot->GetComponentLocation();
+	FVector Target = PlayerCharacter->GetActorLocation();
+
+	FVector Direction = (Target - Start).GetSafeNormal();
+
+	Direction.Y = 0.0f;
+	Direction.Normalize();
+
+	FRotator NewRotation = Direction.Rotation();
+	NewRotation *= -1.f;
+	NewRotation.Yaw = 0.f;
+	NewRotation.Roll = 0.f;
+
+	float DeltaX = Target.X - Start.X;
+
+	if (DeltaX > 0)
+	{
+		//HandSprite->SetRelativeScale3D(FVector(0.5f, 1.f, 0.5f)); // Right
+
+		NewRotation *= -1.f;
+	}
+	else
+	{
+		//HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f)); // Left
+
+
+	}
+	HandPivot->SetWorldRotation(NewRotation);
+}
 

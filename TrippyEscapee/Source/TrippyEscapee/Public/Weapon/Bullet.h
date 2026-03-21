@@ -8,6 +8,7 @@
 
 class UBoxComponent;
 class UProjectileMovementComponent;
+class APlayerCharacter;
 /**
  * 
  */
@@ -25,6 +26,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere);
 	UProjectileMovementComponent* ProjectileMovement;
+
+	UPROPERTY()
+	APlayerCharacter* PlayerCharacter;
 
 protected:
 

@@ -14,6 +14,7 @@ class UInputMappingContext;
 struct FInputActionValue;
 class ABullet;
 class APlayerCharacterController;
+class UPaperSpriteComponent;
 /**
  * 
  */
@@ -64,8 +65,26 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	TSubclassOf<ABullet> BulletClass;
 
+	/*
+	* Damage logic
+	*/
+
 	float Health = 100.f;
 	float MaxHealth = 100.f;
+
+	FTimerHandle DamageTimerHandle;
+	bool bTookDamage = false;
+
+	UPROPERTY(EditAnywhere, Category = "Damage")
+	float DamageCooldown = 2.f;
+
+	UPROPERTY(EditAnywhere, Category = "Damage")
+	float FlickerDuration = 0.1f;
+
+	float FlickerTimer = FlickerDuration;
+
+	UFUNCTION()
+	void TookDamageTimerFinished();
 
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCause);
@@ -96,11 +115,38 @@ public:
 	void SetConfusedControls(bool bIsConfused);
 	void ConfusedTimerFinished();
 
+
 	/*
-	* Confused Controls
+	* Reverse Damage
+	*/
+	FTimerHandle  ReverseDamageTimerHandle;
+
+	bool bIsReverseDamageActive = false;
+
+	UPROPERTY(EditAnywhere, Category = "Reverse Damage")
+	float ReverseDamageDuration = 5.f;
+
+	void SetReverseDamage(bool bIsReverseDamage);
+	void ReverseDamageTimerFinished();
+
+	/*
+	* Stamps
 	*/
 
 	bool bIsStampActive = false;
+
+
+	/*
+	* Hand logic
+	*/
+	UPROPERTY(VisibleAnywhere)
+	USceneComponent* HandPivot;
+
+	UPROPERTY(EditAnywhere)
+	UPaperSpriteComponent* HandSprite;
+
+	void UpdateHandRotation();
+
 
 
 protected:
@@ -111,6 +157,8 @@ private:
 public:
 	FORCEINLINE class USpringArmComponent* GetSprintArm() const { return SpringArm; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	FORCEINLINE void SetStampActivaion(bool active) { bIsStampActive = active; }
+	FORCEINLINE void SetStampActivation(bool active) { bIsStampActive = active; }
+	FORCEINLINE bool GetStampActivation() { return bIsStampActive ; }
+	FORCEINLINE bool GetIsReverseDamageActive() { return bIsReverseDamageActive; }
 	
 };
