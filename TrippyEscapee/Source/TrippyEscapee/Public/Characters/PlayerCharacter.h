@@ -12,6 +12,8 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
+class ABullet;
+class APlayerCharacterController;
 /**
  * 
  */
@@ -46,12 +48,26 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* MoveAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* ShootAction;
+
 	void Move(const FInputActionValue& Value);
+	void Shoot(const FInputActionValue& Value);
+
+	UPROPERTY(VisibleAnywhere)
+	USceneComponent* SpawnBulletPosition;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	TSubclassOf<ABullet> BulletClass;
+
+	float Health = 100.f;
+	float MaxHealth = 100.f;
 
 protected:
 	virtual void BeginPlay() override;
 private:
-
+	UPROPERTY()
+	APlayerCharacterController* PlayerCharacterController;
 public:
 	FORCEINLINE class USpringArmComponent* GetSprintArm() const { return SpringArm; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }

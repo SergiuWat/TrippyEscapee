@@ -10,7 +10,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
-
+#include "Weapon/Bullet.h"
+#include "Controllers/PlayerCharacterController.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "Components/BoxComponent.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -26,12 +29,20 @@ APlayerCharacter::APlayerCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	SpawnBulletPosition = CreateDefaultSubobject<USceneComponent>(TEXT("SpawnBulletPosition"));
+	SpawnBulletPosition->SetupAttachment(RootComponent);
 }
 
 
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	PlayerCharacterController = PlayerCharacterController == nullptr ? Cast<APlayerCharacterController>(GetController()) : PlayerCharacterController;
+	if (PlayerCharacterController)
+	{
+		PlayerCharacterController->SetShowMouseCursor(true);
+	}
 }
 
 
@@ -55,6 +66,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerCharacter::Move);
+		EnhancedInputComponent->BindAction(ShootAction, ETriggerEvent::Started, this, &APlayerCharacter::Shoot);
 	}
 	else
 	{
@@ -78,4 +90,41 @@ void APlayerCharacter::Move(const FInputActionValue& Value)
 
 		AddMovementInput(ForwardDirection, MovementVector.X);
 	}
+}
+
+void APlayerCharacter::Shoot(const FInputActionValue& Value)
+{
+	if (!SpawnBulletPosition) return;
+
+	FVector StartPos = SpawnBulletPosition->GetComponentLocation();	
+	FVector ForwardVector = SpawnBulletPosition->GetForwardVector();
+
+	FVector MouseWorldPos;
+	FVector MouseWorldDir;
+
+	if (PlayerCharacterController->DeprojectMousePositionToWorld(MouseWorldPos, MouseWorldDir))
+	{
+		float T = (StartPos.Y - MouseWorldPos.Y) / MouseWorldDir.Y;
+		FVector Target = MouseWorldPos + MouseWorldDir * T;
+
+		FVector Direction = (Target - StartPos).GetSafeNormal();
+		FRotator SpawnRotation = Direction.Rotation();
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+
+		if (BulletClass)
+		{
+			ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletClass, StartPos, SpawnRotation, SpawnParams);
+			if (Bullet)
+			{
+				Bullet->GetProjectileMovement()->Velocity = Direction * 2000.f;
+				Bullet->GetBoxCollision()->IgnoreActorWhenMoving(this, true);
+			}
+		}
+	}
+
+	
+
 }
