@@ -42,6 +42,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputMappingContext* DefaultMappingContext;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputMappingContext* ConfusedMappingContext;
+
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* JumpAction;
 
@@ -53,6 +56,7 @@ public:
 
 	void Move(const FInputActionValue& Value);
 	void Shoot(const FInputActionValue& Value);
+	
 
 	UPROPERTY(VisibleAnywhere)
 	USceneComponent* SpawnBulletPosition;
@@ -80,6 +84,25 @@ public:
 
 	void Respawn();
 
+
+	/*
+	* Confused Controls
+	*/
+	FTimerHandle ConfusedTimerHandle;
+
+	UPROPERTY(EditAnywhere, Category = "Confused Controls")
+	float ConfusedDuration = 5.f;
+
+	void SetConfusedControls(bool bIsConfused);
+	void ConfusedTimerFinished();
+
+	/*
+	* Confused Controls
+	*/
+
+	bool bIsStampActive = false;
+
+
 protected:
 	virtual void BeginPlay() override;
 private:
@@ -88,6 +111,6 @@ private:
 public:
 	FORCEINLINE class USpringArmComponent* GetSprintArm() const { return SpringArm; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-
+	FORCEINLINE void SetStampActivaion(bool active) { bIsStampActive = active; }
 	
 };

@@ -152,6 +152,35 @@ void APlayerCharacter::Shoot(const FInputActionValue& Value)
 	}
 }
 
+void APlayerCharacter::SetConfusedControls(bool bIsConfused)
+{
+	
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->ClearAllMappings();
+			if (bIsConfused)
+			{
+				GetWorld()->GetTimerManager().SetTimer(ConfusedTimerHandle, this, &APlayerCharacter::ConfusedTimerFinished, ConfusedDuration, false);
+				Subsystem->RemoveMappingContext(DefaultMappingContext);
+				Subsystem->AddMappingContext(ConfusedMappingContext, 0);
+			}
+			else
+			{
+				Subsystem->RemoveMappingContext(ConfusedMappingContext);
+				Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			}
+		}
+	}
+}
+
+void APlayerCharacter::ConfusedTimerFinished()
+{
+	SetConfusedControls(false);
+	bIsStampActive = false;
+}
+
 void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
 {
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
