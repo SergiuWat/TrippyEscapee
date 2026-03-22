@@ -57,11 +57,18 @@ AEnemyBase::AEnemyBase()
 }
 
 
+
+
 void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
 	PlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
+	if (PlayerCharacter)
+	{
+		PlayerCharacter->OnPlayerUpsideDown.AddDynamic(this, &AEnemyBase::OnUpsideDownActivate);
+		PlayerCharacter->OnPlayerUpsideDownStampFinished.AddDynamic(this, &AEnemyBase::OnUpsideDownDezactivate);
+	}
 	OnTakeAnyDamage.AddDynamic(this, &AEnemyBase::ReceiveDamage);
 	if (PawnSensing)
 	{
@@ -75,7 +82,7 @@ void AEnemyBase::Tick(float DeltaTime)
 
 	if (!bHasSeenPlayer || !PlayerCharacter)
 	{
-		GetCharacterMovement()->StopMovementImmediately();
+		//GetCharacterMovement()->StopMovementImmediately();
 		StopFiring();
 		return;
 	}
@@ -116,13 +123,67 @@ void AEnemyBase::Tick(float DeltaTime)
 	if (DeltaX > 0)
 	{
 		SetActorScale3D(FVector(-1, 1, 1));   // right
+	/*	FVector PivotLocation = HandPivot->GetComponentLocation();
+		PivotLocation.Y = -PivotLocation.Y;*/
 
 	}
 	else
 	{
 		SetActorScale3D(FVector(1, 1, 1));  // left
+		/*FVector PivotLocation = HandPivot->GetComponentLocation();
+		PivotLocation.Y = PivotLocation.Y;*/
 
 	}
+
+	if (bIsUpsideDown)
+	{
+
+		if (GetCharacterMovement()->IsMovingOnGround())
+		{
+			GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+		}
+	}
+	//UpdatePivot(DeltaX);
+	UpdateHandRotation();
+}
+
+void AEnemyBase::UpdatePivot(float DirectionX)
+{
+	float X = (DirectionX > 0) ? -38.f : 38.f;
+	float Y = (DirectionX > 0) ? -0.01f : 0.01f;
+
+	if (bIsUpsideDown)
+	{
+		X *= -1.f;
+		Y *= -1.f;
+	}
+
+	HandPivot->SetRelativeLocation(FVector(X, Y, 0.f));
+}
+
+void AEnemyBase::OnUpsideDownActivate()
+{
+	bIsUpsideDown = true;
+
+
+	SetActorRotation(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 180.f));
+
+
+	GetCharacterMovement()->GravityScale = -1.f;
+
+
+	GetCharacterMovement()->Velocity.Z = 0.f;
+}
+
+void AEnemyBase::OnUpsideDownDezactivate()
+{
+	bIsUpsideDown = false;
+
+	SetActorRotation(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.f));
+
+	GetCharacterMovement()->GravityScale = 1.f;
+
+	GetCharacterMovement()->Velocity.Z = 0.f;
 }
 
 
@@ -273,6 +334,11 @@ void AEnemyBase::UpdateHandRotation()
 		//HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f)); // Left
 
 
+	}
+
+	if (bIsUpsideDown)
+	{
+		//NewRotation.Pitch *= -1.f;
 	}
 	HandPivot->SetWorldRotation(NewRotation);
 }

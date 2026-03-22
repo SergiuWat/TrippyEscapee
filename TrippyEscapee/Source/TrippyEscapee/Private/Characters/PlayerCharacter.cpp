@@ -117,6 +117,7 @@ void APlayerCharacter::Tick(float DeltaTime)
 		FVector PivotLocation = HandPivot->GetRelativeLocation();
 		PivotLocation.Y = -0.01f;
 		PivotLocation.X = -38.0f;
+		LastYLocationOfPivot =-0.01f;
 		HandPivot->SetRelativeLocation(PivotLocation);
 	}
 	if (bTookDamage)
@@ -132,6 +133,49 @@ void APlayerCharacter::Tick(float DeltaTime)
 		{
 			GetSprite()->SetVisibility(false);
 			HandSprite->SetVisibility(false);
+		}
+	}
+
+	if (bIsUpsideDown)
+	{
+		// Flip player (180° on Z axis)
+		SetActorRotation(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 180.f));
+		FVector PivotLocation = HandPivot->GetRelativeLocation();
+		FRotator HandRotation = HandPivot->GetComponentRotation();
+		HandRotation.Pitch *= -1.f;
+		HandRotation.Yaw *= -1.f;
+		PivotLocation.Y = -LastYLocationOfPivot;
+		PivotLocation.X = -LastXLocationOfPivot;
+		HandPivot->SetWorldRotation(HandRotation);
+		HandPivot->SetRelativeLocation(PivotLocation);
+
+
+		FVector GravityDirection = bIsUpsideDown ? FVector::UpVector : FVector::DownVector;
+
+		FVector Start = GetActorLocation();
+		FVector End = Start + GravityDirection * FVector(0, 0, 300.f); 
+
+		FHitResult Hit;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			Hit,
+			Start,
+			End,
+			ECC_Visibility,
+			Params
+		);
+		DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1.f);
+		if (bHit)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("HIT"));
+			GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("NO"));
+			GetCharacterMovement()->SetMovementMode(MOVE_Falling);
 		}
 	}
 }
@@ -160,6 +204,19 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 }
 
 
+void APlayerCharacter::Jump()
+{
+	if (bIsUpsideDown)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+		LaunchCharacter(FVector(0, 0, -GetCharacterMovement()->JumpZVelocity), false, true);
+	}
+	else
+	{
+		Super::Jump();
+	}
+}
+
 void APlayerCharacter::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
@@ -174,16 +231,45 @@ void APlayerCharacter::Move(const FInputActionValue& Value)
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		if (MovementVector.X < 0)
 		{
-			FVector PivotLocation = HandPivot->GetRelativeLocation();
-			PivotLocation.X = 38.f;
-			PivotLocation.Y = 0.01f;
-			HandPivot->SetRelativeLocation(PivotLocation);
+			if (bIsUpsideDown)
+			{
+				FVector PivotLocation = HandPivot->GetRelativeLocation();
+				PivotLocation.X = 38.f;
+				PivotLocation.Y = -0.01f;
+				LastYLocationOfPivot = PivotLocation.Y;
+				LastXLocationOfPivot = PivotLocation.X;
+				HandPivot->SetRelativeLocation(PivotLocation);
+			}
+			else {
+				FVector PivotLocation = HandPivot->GetRelativeLocation();
+				PivotLocation.X = 38.f;
+				PivotLocation.Y = 0.01f;
+				LastYLocationOfPivot = PivotLocation.Y;
+				LastXLocationOfPivot = PivotLocation.X;
+				HandPivot->SetRelativeLocation(PivotLocation);
+			}
+			
 		}
 		else {
-			FVector PivotLocation = HandPivot->GetRelativeLocation();
-			PivotLocation.X = -38.f;
-			PivotLocation.Y = -0.01f;
-			HandPivot->SetRelativeLocation(PivotLocation);
+			if (bIsUpsideDown)
+			{
+				FVector PivotLocation = HandPivot->GetRelativeLocation();
+				PivotLocation.X = -38.f;
+				PivotLocation.Y = 0.01f;
+				LastYLocationOfPivot = PivotLocation.Y;
+				LastXLocationOfPivot = PivotLocation.X;
+				HandPivot->SetRelativeLocation(PivotLocation);
+			}
+			else
+			{
+				FVector PivotLocation = HandPivot->GetRelativeLocation();
+				PivotLocation.X = -38.f;
+				PivotLocation.Y = -0.01f;
+				LastYLocationOfPivot = PivotLocation.Y;
+				LastXLocationOfPivot = PivotLocation.X;
+				HandPivot->SetRelativeLocation(PivotLocation);
+			}
+
 		}
 		float DirectionMultiplier = bIsUpsideDown ? -1.f : 1.f;
 		AddMovementInput(ForwardDirection, MovementVector.X * DirectionMultiplier);
@@ -274,16 +360,28 @@ void APlayerCharacter::SetUpsideDown(bool bEnable)
 	if (bIsUpsideDown)
 	{
 		// Flip player (180° on Z axis)
-		SetActorRotation(FRotator(180.f, 0.f,0.f));
+		SetActorRotation(FRotator(0.f, 0.f, 180.f));
 
 		// Flip camera de jucat pe aici
-		FollowCamera->SetRelativeRotation(FRotator(180.f, 0.f, 0.f));
+		FollowCamera->SetRelativeRotation(FRotator(0.f, 0.f, 180.f));
+
+		GetCharacterMovement()->GravityScale = -5.f;
+		GetWorld()->GetTimerManager().SetTimer(UpsideDownTimerHandle, this, &APlayerCharacter::UpsideDownTimerFinished, UpsideDownDuration, false);
+		OnPlayerUpsideDown.Broadcast();
 	}
 	else
 	{
 		SetActorRotation(FRotator::ZeroRotator);
-		SpringArm->SetRelativeRotation(FRotator::ZeroRotator);
+		FollowCamera->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
+
+		GetCharacterMovement()->GravityScale = 5.f;
+		OnPlayerUpsideDownStampFinished.Broadcast();
 	}
+}
+
+void APlayerCharacter::UpsideDownTimerFinished()
+{
+	SetUpsideDown(false);
 }
 
 void APlayerCharacter::OnPlayerDeadTimerFinished()

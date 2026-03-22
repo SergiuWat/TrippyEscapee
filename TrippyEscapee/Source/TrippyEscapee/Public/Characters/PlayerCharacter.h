@@ -9,6 +9,8 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerRespawn);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerUpsideDown);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerUpsideDownStampFinished);
 
 class USpringArmComponent;
 class UCameraComponent;
@@ -60,6 +62,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* ShootAction;
 
+	virtual void Jump() override;
+
 	void Move(const FInputActionValue& Value);
 
 	UPROPERTY(EditAnywhere, Category = "Weapon")
@@ -82,7 +86,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Checkpoint")
 	UPaperFlipbook* HitFlipbook;
 
-	float Health = 20.f;
+	UPROPERTY(EditAnywhere, Category = "Health")
+	float Health = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "Health")
 	float MaxHealth = 100.f;
 
 	FTimerHandle PlayerDeadTimerHandle;
@@ -169,7 +176,18 @@ public:
 	FTimerHandle  UpsideDownTimerHandle;
 	void SetUpsideDown(bool bEnable);
 
+	UPROPERTY(EditAnywhere, Category = "Reverse Damage")
+	float UpsideDownDuration = 3.f;
+
 	bool bIsUpsideDown = false;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPlayerUpsideDown OnPlayerUpsideDown;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPlayerUpsideDownStampFinished OnPlayerUpsideDownStampFinished;
+
+	void UpsideDownTimerFinished();
 
 	/*
 	* Stamps
@@ -187,6 +205,8 @@ public:
 	UPROPERTY(EditAnywhere)
 	UPaperSpriteComponent* HandSprite;
 
+	float LastYLocationOfPivot = 0.0f;
+	float LastXLocationOfPivot = 0.0f;
 	void UpdateHandRotation();
 
 

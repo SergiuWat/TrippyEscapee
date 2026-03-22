@@ -113,8 +113,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Checkpoint")
 	UPaperFlipbook* HitFlipbook;
 
+
+
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	USoundCue* ShootSound;
+
+	/*
+	* Upside down
+	*/
+
+	void UpdatePivot(float DirectionX);
+	UFUNCTION()
+	void OnUpsideDownActivate();
+
+	UFUNCTION()
+	void OnUpsideDownDezactivate();
+
+	bool bIsUpsideDown = false;
+
 
 protected:
 
