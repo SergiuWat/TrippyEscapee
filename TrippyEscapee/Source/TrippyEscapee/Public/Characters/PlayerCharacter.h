@@ -87,10 +87,10 @@ public:
 	UPaperFlipbook* HitFlipbook;
 
 	UPROPERTY(EditAnywhere, Category = "Health")
-	float Health = 100.f;
+	int32 Health = 5;
 
 	UPROPERTY(EditAnywhere, Category = "Health")
-	float MaxHealth = 100.f;
+	int32 MaxHealth = 5;
 
 	FTimerHandle PlayerDeadTimerHandle;
 
@@ -129,6 +129,8 @@ public:
 
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCause);
+
+	void UpdateHUD();
 
 	/*
 	* Checkpoint

@@ -78,13 +78,29 @@ public:
 
 	void StartFiring();
 	void StopFiring();
-	void Fire();
+	virtual void Fire();
 
 	UFUNCTION()
 	void OnSeePawn(APawn* Pawn);
 
+	FTimerHandle EnemyDeadTimerHandle;
+
+	UFUNCTION()
+	void OnEnemyDeadTimerFinished();
+
 	float Health = 100.f;
 	float MaxHealth = 100.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool BIsEnemyDead = false;
+
+
+	UPROPERTY(EditAnywhere, Category = "Checkpoint")
+	UPaperFlipbook* DeathFlipbook;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bIsEnemyType2 = false;
+
 
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCause);
@@ -112,8 +128,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Checkpoint")
 	UPaperFlipbook* HitFlipbook;
-
-
 
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	USoundCue* ShootSound;

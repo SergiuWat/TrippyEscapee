@@ -74,6 +74,8 @@ void AEnemyBase::BeginPlay()
 	{
 		PawnSensing->OnSeePawn.AddDynamic(this, &AEnemyBase::OnSeePawn);
 	}
+	HandSprite->SetVisibility(true);
+	
 }
 
 void AEnemyBase::Tick(float DeltaTime)
@@ -86,7 +88,7 @@ void AEnemyBase::Tick(float DeltaTime)
 		StopFiring();
 		return;
 	}
-	if (bIsStunned) return;
+	if (bIsStunned || BIsEnemyDead) return;
 	UpdateHandRotation();
 	FVector MyLocation = GetActorLocation();
 	FVector PlayerLocation = PlayerCharacter->GetActorLocation();
@@ -244,8 +246,23 @@ void AEnemyBase::OnSeePawn(APawn* Pawn)
 	HandSprite->SetRelativeScale3D(FVector(-0.5f, 1.f, 0.5f));
 }
 
+void AEnemyBase::OnEnemyDeadTimerFinished()
+{
+	TSubclassOf<ABaseStamp> StampToSpawn = GetRandomStamp();
+	if (StampToSpawn)
+	{
+		GetWorld()->SpawnActor<ABaseStamp>(
+			StampToSpawn,
+			GetActorLocation(),
+			FRotator::ZeroRotator
+		);
+	}
+	Destroy();
+}
+
 void AEnemyBase::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCause)
 {
+	if (BIsEnemyDead) return;
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
 	UE_LOG(LogTemp, Warning, TEXT("Takes Damage"));
 	if (HitFlipbook)
@@ -262,16 +279,10 @@ void AEnemyBase::ReceiveDamage(AActor* DamageActor, float Damage, const UDamageT
 	UE_LOG(LogTemp, Warning, TEXT("Enemy took damage: %f, Current Health: %f"), Damage, Health);
 	if (Health <= 0.f)
 	{
-		TSubclassOf<ABaseStamp> StampToSpawn = GetRandomStamp();
-		if (StampToSpawn)
-		{
-			GetWorld()->SpawnActor<ABaseStamp>(
-				StampToSpawn,
-				GetActorLocation(),
-				FRotator::ZeroRotator
-			);
-		}
-		Destroy();
+		float Duration = DeathFlipbook->GetTotalDuration();
+		BIsEnemyDead = true;
+		HandSprite->SetVisibility(false);
+		GetWorld()->GetTimerManager().SetTimer(EnemyDeadTimerHandle, this, &AEnemyBase::OnEnemyDeadTimerFinished, Duration, false);
 	}
 }
 

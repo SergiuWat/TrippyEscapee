@@ -20,6 +20,8 @@
 #include "PaperFlipbook.h"
 #include "Sound/SoundCue.h"
 #include "Kismet/GameplayStatics.h"
+#include "HUD/CharacterOverlay.h" 
+#include "HUD/PlayerHUD.h" 
 
 #include "DrawDebugHelpers.h"
 
@@ -86,6 +88,7 @@ void APlayerCharacter::Respawn()
 	GetSprite()->SetVisibility(true);
 	HandSprite->SetVisibility(true);
 	OnPlayerRespawn.Broadcast();
+	UpdateHUD();
 	UE_LOG(LogTemp, Warning, TEXT("Respawned at checkpoint"));
 }
 
@@ -100,6 +103,7 @@ void APlayerCharacter::BeginPlay()
 	{
 		PlayerCharacterController->SetShowMouseCursor(true);
 	}
+	UpdateHUD();
 }
 
 
@@ -426,9 +430,10 @@ void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UD
 
 	bTookDamage = true;
 	GetWorld()->GetTimerManager().SetTimer(DamageTimerHandle, this, &APlayerCharacter::TookDamageTimerFinished, DamageCooldown, false);
-	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
-	// Update HUD Here
-	UE_LOG(LogTemp, Warning, TEXT("Player took damage: %f, Current Health: %f"), Damage, Health);
+	Health = FMath::Clamp(Health - 1, 0.f, MaxHealth);
+
+	UpdateHUD();
+	//UE_LOG(LogTemp, Warning, TEXT("Player took damage: %f, Current Health: %f"), Damage, Health);
 	if (Health <= 0.f)
 	{
 		GetSprite()->SetVisibility(true);
@@ -440,6 +445,21 @@ void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UD
 		{
 			DisableInput(PlayerCharacterController);
 		}
+	}
+}
+
+void APlayerCharacter::UpdateHUD()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC) return;
+
+	APlayerHUD* HUD = Cast<APlayerHUD>(PC->GetHUD());
+	if (!HUD) return;
+
+	UCharacterOverlay* Overlay = HUD->GetOverlay();
+	if (Overlay)
+	{
+		Overlay->UpdateHearts(Health);
 	}
 }
 
