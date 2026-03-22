@@ -280,9 +280,15 @@ void APlayerCharacter::Move(const FInputActionValue& Value)
 	}
 }
 
+void APlayerCharacter::ShootTimerFinished()
+{
+	CanShoot = true;
+}
+
 void APlayerCharacter::Shoot(const FInputActionValue& Value)
 {
 	if (!SpawnBulletPosition) return;
+	if (!CanShoot) return;
 
 	FVector StartPos = SpawnBulletPosition->GetComponentLocation();	
 	FVector ForwardVector = SpawnBulletPosition->GetForwardVector();
@@ -305,6 +311,8 @@ void APlayerCharacter::Shoot(const FInputActionValue& Value)
 		if (BulletClass)
 		{
 			ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletClass, StartPos, SpawnRotation, SpawnParams);
+			CanShoot = false;
+			GetWorld()->GetTimerManager().SetTimer(ShootTimerHandle, this, &APlayerCharacter::ShootTimerFinished, ShootCooldown, false);
 			if (Bullet)
 			{
 				UGameplayStatics::PlaySoundAtLocation(this, ShootSound, GetActorLocation());

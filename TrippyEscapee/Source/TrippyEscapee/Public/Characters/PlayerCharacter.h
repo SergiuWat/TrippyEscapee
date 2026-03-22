@@ -69,6 +69,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	USoundCue* ShootSound;
 
+	FTimerHandle ShootTimerHandle;
+	UPROPERTY(EditAnywhere)
+	float ShootCooldown = 0.2f;
+	bool CanShoot = true;
+
+	UFUNCTION()
+	void ShootTimerFinished();
 	void Shoot(const FInputActionValue& Value);
 	
 
