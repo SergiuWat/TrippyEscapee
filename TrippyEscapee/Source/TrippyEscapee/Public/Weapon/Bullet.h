@@ -9,6 +9,8 @@
 class UBoxComponent;
 class UProjectileMovementComponent;
 class APlayerCharacter;
+class UPaperFlipbookComponent;
+class UPaperFlipbook;
 /**
  * 
  */
@@ -29,6 +31,12 @@ public:
 
 	UPROPERTY()
 	APlayerCharacter* PlayerCharacter;
+
+	UPROPERTY(VisibleAnywhere)
+	UPaperFlipbookComponent* FlipbookComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Visual")
+	UPaperFlipbook* BulletFlipbook;
 
 protected:
 

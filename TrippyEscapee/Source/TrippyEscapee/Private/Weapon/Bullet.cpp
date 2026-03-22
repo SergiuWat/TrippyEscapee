@@ -9,6 +9,8 @@
 #include "Characters/PlayerCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Enemies/EnemyBase.h"
+#include "PaperFlipbookComponent.h"
+#include "PaperFlipbook.h"
 
 ABullet::ABullet()
 {
@@ -31,10 +33,20 @@ ABullet::ABullet()
     ProjectileMovement->bConstrainToPlane = true;
     ProjectileMovement->SetPlaneConstraintNormal(FVector(0, 1, 0)); 
 
+    FlipbookComponent = CreateDefaultSubobject<UPaperFlipbookComponent>(TEXT("Flipbook"));
+    FlipbookComponent->SetupAttachment(RootComponent);
+
 }
 void ABullet::BeginPlay()
 {
 	Super::BeginPlay();
+
+    if (FlipbookComponent && BulletFlipbook)
+    {
+        FlipbookComponent->SetFlipbook(BulletFlipbook);
+        FlipbookComponent->Play();
+    }
+
     if (GetOwner()) 
     {
         BoxCollision->MoveIgnoreActors.Add(GetOwner());

@@ -7,6 +7,9 @@
 #include "PlayerCharacter.generated.h"
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerRespawn);
+
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
@@ -79,8 +82,22 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Checkpoint")
 	UPaperFlipbook* HitFlipbook;
 
-	float Health = 100.f;
+	float Health = 20.f;
 	float MaxHealth = 100.f;
+
+	FTimerHandle PlayerDeadTimerHandle;
+
+	UFUNCTION()
+	void OnPlayerDeadTimerFinished();
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsPlayerDead = false;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPlayerDeath OnPlayerDeath;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPlayerRespawn OnPlayerRespawn;
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsHitAnimationFinished = true;
@@ -145,6 +162,14 @@ public:
 
 	void SetReverseDamage(bool bIsReverseDamage);
 	void ReverseDamageTimerFinished();
+
+	/*
+	* Upside down
+	*/
+	FTimerHandle  UpsideDownTimerHandle;
+	void SetUpsideDown(bool bEnable);
+
+	bool bIsUpsideDown = false;
 
 	/*
 	* Stamps

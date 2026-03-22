@@ -68,10 +68,24 @@ void APlayerCharacter::Respawn()
 		UE_LOG(LogTemp, Warning, TEXT("No checkpoint set!"));
 		return;
 	}
-
+	if (PlayerCharacterController)
+	{
+		EnableInput(PlayerCharacterController);
+	}
 	SetActorLocation(LastCheckpointLocation);
 	Health = SavedHealth;
 
+	GetWorld()->GetTimerManager().ClearTimer(ConfusedTimerHandle);
+	SetConfusedControls(false);
+	GetWorld()->GetTimerManager().ClearTimer(ReverseDamageTimerHandle);
+	SetReverseDamage(false);
+
+	bIsStampActive = false;
+	bIsReverseDamageActive = false;
+
+	GetSprite()->SetVisibility(true);
+	HandSprite->SetVisibility(true);
+	OnPlayerRespawn.Broadcast();
 	UE_LOG(LogTemp, Warning, TEXT("Respawned at checkpoint"));
 }
 
@@ -92,6 +106,7 @@ void APlayerCharacter::BeginPlay()
 void APlayerCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (bIsPlayerDead) return;
 	UpdateHandRotation();
 	FVector Velocity = GetVelocity();
 	Velocity.Y = 0.f;
@@ -170,7 +185,8 @@ void APlayerCharacter::Move(const FInputActionValue& Value)
 			PivotLocation.Y = -0.01f;
 			HandPivot->SetRelativeLocation(PivotLocation);
 		}
-		AddMovementInput(ForwardDirection, MovementVector.X);
+		float DirectionMultiplier = bIsUpsideDown ? -1.f : 1.f;
+		AddMovementInput(ForwardDirection, MovementVector.X * DirectionMultiplier);
 	}
 }
 
@@ -251,6 +267,31 @@ void APlayerCharacter::ReverseDamageTimerFinished()
 	bIsStampActive = false;
 }
 
+void APlayerCharacter::SetUpsideDown(bool bEnable)
+{
+	bIsUpsideDown = bEnable;
+
+	if (bIsUpsideDown)
+	{
+		// Flip player (180° on Z axis)
+		SetActorRotation(FRotator(180.f, 0.f,0.f));
+
+		// Flip camera de jucat pe aici
+		FollowCamera->SetRelativeRotation(FRotator(180.f, 0.f, 0.f));
+	}
+	else
+	{
+		SetActorRotation(FRotator::ZeroRotator);
+		SpringArm->SetRelativeRotation(FRotator::ZeroRotator);
+	}
+}
+
+void APlayerCharacter::OnPlayerDeadTimerFinished()
+{
+	Respawn();
+	bIsPlayerDead = false;
+}
+
 void APlayerCharacter::OnHitAnimationFinished()
 {
 	PlayerCharacterController = PlayerCharacterController == nullptr ? Cast<APlayerCharacterController>(GetController()) : PlayerCharacterController;
@@ -292,10 +333,17 @@ void APlayerCharacter::ReceiveDamage(AActor* DamageActor, float Damage, const UD
 	UE_LOG(LogTemp, Warning, TEXT("Player took damage: %f, Current Health: %f"), Damage, Health);
 	if (Health <= 0.f)
 	{
-		Respawn();
+		GetSprite()->SetVisibility(true);
+		HandSprite->SetVisibility(false);
+		bIsPlayerDead = true;
+		OnPlayerDeath.Broadcast();
+		GetWorld()->GetTimerManager().SetTimer(PlayerDeadTimerHandle, this, &APlayerCharacter::OnPlayerDeadTimerFinished, 1.5f, false);
+		if (PlayerCharacterController)
+		{
+			DisableInput(PlayerCharacterController);
+		}
 	}
 }
-
 
 void APlayerCharacter::UpdateHandRotation()
 {
